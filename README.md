@@ -1,5 +1,10 @@
 # Cadastro de Alunos (WinForms + MySQL)
 
+- Camila do Pardo - rm98316
+- Felipe Bressane - rm97688
+- Gabriel Teixeira - rm551570
+- Guilherme Brazioli - rm98237
+
 ## 📝 Descrição breve
 
 Este projeto é uma aplicação **Windows Forms (.NET)** para **cadastro de alunos** com os campos **RM (7 dígitos), Nome, CPF (11 dígitos) e E-mail**.  
