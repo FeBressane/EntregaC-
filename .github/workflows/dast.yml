@@ -1,0 +1,32 @@
+name: DAST - OWASP ZAP (Baseline)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  zap:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Sobe um servidor HTTP simples servindo a pasta ./public na porta 8000
+      - name: Start simple web server (port 8000)
+        run: |
+          python3 -m http.server 8000 --directory public &>/dev/null &
+          # dá um tempo pro servidor subir
+          sleep 3
+
+      # Roda o ZAP Baseline contra http://localhost:8000
+      - name: Run ZAP Baseline
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://localhost:8000'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue_title: 'Relatório DAST (ZAP Baseline)'
+          fail_action: true
