@@ -1,46 +1,38 @@
----
-########################
-########################
-## SAST GitHub Action ##
-########################
-########################
-name: SAST
+name: SAST - Semgrep (C#)
 
-#######################################
-# Start the job on all push to master #
-#######################################
 on:
   push:
+    branches: [ "main" ]
   pull_request:
-    branches: ['master']
+    branches: [ "main" ]
+  workflow_dispatch: {}
 
-###############
-# Set the Job #
-###############
 jobs:
-  build:
-    # Name the Job
-    name: SAST
-
-    # Set the agent to run on
+  semgrep:
+    name: Run Semgrep
     runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
 
-    ##################
-    # Load all steps #
-    ##################
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
-      ##########################
-      # Checkout the code base #
-      ##########################
-      - name: Checkout Code
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      #####################
-      # Run Deploy script #
-      #####################
-      - name: Run SAST check
-        uses: IvanKuchin/SAST@v1
+      # Regras de C# + (opcional) secrets
+      - name: Semgrep scan (SARIF)
+        run: >
+          semgrep scan
+          --config "p/csharp"
+          --config "p/secrets"
+          --sarif --output semgrep.sarif
+          --severity INFO
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          GITHUB_TOKEN: ${{ github.token }}
-        env:
-          LOG_VERBOSE: true
+          sarif_file: semgrep.sarif
