@@ -1,0 +1,27 @@
+name: SCA - OWASP Dependency-Check
+on:
+  pull_request:
+  push:
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          format: 'HTML'
+          project: 'SeuProjeto'
+          path: '.'
+          out: 'odc-report'
+      - name: Gate CVSS >= 7
+        run: |
+          if grep -Eiq 'CVSS Score[^0-9]*([7-9]\.|10\.0)' odc-report/dependency-check-report.html; then
+            echo "High vulnerabilities detected (CVSS>=7). Failing."
+            exit 1
+          fi
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-odc
+          path: odc-report
