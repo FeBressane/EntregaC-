@@ -1,0 +1,33 @@
+name: SAST - Semgrep
+on:
+  pull_request:
+  push:
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/ci
+            p/secrets
+            p/security-audit
+            p/csharp
+          generateSarif: true
+          json: true
+      - name: Fail on High/Critical
+        run: |
+          jq -r '.results[] | select(.severity=="ERROR" or .severity=="WARNING") | .extra.severity' semgrep.json > severities.txt || true
+          # Ajuste: trate "CRITICAL/HIGH/MEDIUM" conforme seu reporte (às vezes vem em .extra.severity)
+          if grep -Eiq 'CRITICAL|HIGH' severities.txt; then
+            echo "High/Critical findings detected. Failing the build."
+            exit 1
+          fi
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-artifacts
+          path: |
+            semgrep.json
+            semgrep.sarif
