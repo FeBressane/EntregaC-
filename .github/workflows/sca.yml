@@ -1,0 +1,19 @@
+name: SCA - Dependencies
+on: [push, pull_request]
+jobs:
+  sca:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore
+        run: dotnet restore
+      - name: Vulnerable packages
+        run: dotnet list ./CadastroAlunos.csproj package --vulnerable > evidencias/sca/vulnerable.txt || true
+      - name: Gate High/Critical
+        run: |
+          if grep -Eiq 'High|Critical' evidencias/sca/vulnerable.txt; then
+            echo "High/Critical vulnerabilities found"; exit 1; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sca-vulnerable
+          path: evidencias/sca/vulnerable.txt
