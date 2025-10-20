@@ -2,21 +2,35 @@ name: DAST - ZAP Baseline
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * 1' # semanal
+    - cron: '0 3 * * 1'  # semanal
 jobs:
-  zap-baseline:
+  zap:
     runs-on: ubuntu-latest
     steps:
-      - name: ZAP Baseline Scan
+      - uses: actions/checkout@v4
+
+      - name: Build & run PrivacidadeApi
+        run: |
+          dotnet build ./PrivacidadeApi/PrivacidadeApi.csproj -c Release
+          dotnet run --project ./PrivacidadeApi/PrivacidadeApi.csproj --urls "http://0.0.0.0:5000" &
+          echo $! > api.pid
+          sleep 5
+
+      - name: ZAP Baseline (AFTER - com correções)
         uses: zaproxy/action-baseline@v0.10.0
         with:
-          target: ${{ secrets.ZAP_TARGET_URL }} # https://seu-endpoint
-          rules_file_name: ''
+          target: 'http://localhost:5000'
           cmd_options: '-a'
-      - name: Upload ZAP report
-        uses: actions/upload-artifact@v4
+      - name: Coletar relatório
+        run: |
+          mkdir -p evidencias/zap
+          cp report_html.html evidencias/zap/after.html || true
+          cat zap.out > evidencias/zap/after.txt || true
+
+      - name: Encerrar API
+        run: kill $(cat api.pid) || true
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: zap-report
-          path: |
-            report_html.html
-            zap.out
+          name: zap-after
+          path: evidencias/zap
