@@ -1,0 +1,66 @@
+name: security-pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+env:
+  # Ajuste para o endereço do seu ambiente de QA/Staging quando usar o ZAP:
+  TARGET_URL: "https://staging.example.com"
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python (para Semgrep/auxiliares)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ---------- SAST (Semgrep) ----------
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep
+        run: semgrep --config ci-cd/semgrep/semgrep-ci.yml --sarif --output semgrep.sarif || true
+
+      # ---------- Segredos (Gitleaks) ----------
+      - name: Gitleaks (secrets scan)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --source . --report-format sarif --report-path gitleaks.sarif --no-banner || true
+
+      # ---------- SCA (OWASP Dependency-Check) ----------
+      - name: Install Dependency-Check
+        run: |
+          curl -L -o dc.zip https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.3/dependency-check-10.0.3-release.zip
+          unzip -q dc.zip -d $HOME/dc
+
+      - name: Run Dependency-Check
+        run: |
+          $HOME/dc/dependency-check/bin/dependency-check.sh --scan . --format HTML --out dependency-check-report.html || true
+
+      # ---------- DAST (OWASP ZAP Baseline) ----------
+      - name: ZAP Baseline
+        uses: zaproxy/action-baseline@v0.11.0
+        with:
+          target: ${{ env.TARGET_URL }}
+        continue-on-error: true
+
+      # ---------- Quality Gate ----------
+      # Falha o job se houver findings "error" em Semgrep ou Gitleaks.
+      - name: Quality Gates
+        run: |
+          python - << 'PY'
+import os, json, sys
+
+def has_blocker(path):
+    if not os.path.
