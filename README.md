@@ -28,6 +28,22 @@ A interface (`Form1`) coleta os dados, executa **validações simples** e aciona
 
 ---
 
+## Nosso SSDLC
+Fases e controles:
+- Requisitos: requisitos de segurança (LGPD mínima, sem dados desnecessários).
+- Design: ameaças SQLi/segredos → mitigação por parametrização e .env.
+- Implementação: SAST (Semgrep) em push/PR; padrão de codificação segura (abaixo).
+- Testes: validação de entrada; SAST com gate (High/Critical falha o build).
+- Deploy: variáveis de ambiente; sem credenciais versionadas.
+- Operação: logs sem dados sensíveis; revisão de dependências.
+
+Papéis:
+- Dev: implementa e abre PR
+- Revisor: valida e exige checks verdes
+- Segurança: gate automatizado (SAST) + checklist PR
+
+---
+
 ## 🗄️ Banco de Dados
 
 Execute o script abaixo no MySQL:
