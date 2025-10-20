@@ -44,6 +44,14 @@ Papéis:
 
 ---
 
+## Política de Vulnerabilidades
+- Gate SAST: falha se novo High/Critical ou segredo.
+- Gate SCA: falha se High/Critical (CVSS ≥7).
+- Gate DAST: falha se novo High/Critical (baseline de referência salva como zap/baseline.json/html).
+- Exceções: só com justificativa e data de expiração (issue “Exception Request” + label sec-exception).
+
+---
+
 ## 🗄️ Banco de Dados
 
 Execute o script abaixo no MySQL:
