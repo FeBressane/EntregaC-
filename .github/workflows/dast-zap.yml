@@ -2,35 +2,62 @@ name: DAST - ZAP Baseline
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * 1'  # semanal
+    - cron: '0 3 * * 1'  # semanal (opcional)
+
 jobs:
   zap:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # importante: precisa de Docker com network=host
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            7.0.x
+
+      # >>> Suba sua API alvo (ajuste o caminho do csproj se necessário)
       - name: Build & run PrivacidadeApi
         run: |
           dotnet build ./PrivacidadeApi/PrivacidadeApi.csproj -c Release
-          dotnet run --project ./PrivacidadeApi/PrivacidadeApi.csproj --urls "http://0.0.0.0:5000" &
-          echo $! > api.pid
-          sleep 5
+          # expõe na porta 5000
+          dotnet run --project ./PrivacidadeApi/PrivacidadeApi.csproj --urls "http://0.0.0.0:5000" & echo $! > api.pid
+          # aguarda ficar de pé (tenta por até ~60s)
+          for i in {1..30}; do
+            if curl -sSf http://localhost:5000/ >/dev/null; then
+              echo "API pronta!"; break
+            fi
+            echo "Aguardando API..."; sleep 2
+          done
 
-      - name: ZAP Baseline (AFTER - com correções)
+      # >>> Rode o ZAP Baseline apontando para http://localhost:5000
+      - name: ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: 'http://localhost:5000'
-          cmd_options: '-a'
-      - name: Coletar relatório
+          # -a = incluir algumas verificações ativas de baixo risco;
+          # -m 5 = spider por 5 minutos (ajuste se quiser)
+          cmd_options: '-a -m 5'
+          # (Opcional) fornece um arquivo de regras para silenciar informativos barulhentos
+          # rules_file_name: 'zap-rules.tsv'
+
+      - name: Collect ZAP reports
         run: |
           mkdir -p evidencias/zap
           cp report_html.html evidencias/zap/after.html || true
-          cat zap.out > evidencias/zap/after.txt || true
+          cp report_md.md evidencias/zap/after.md || true
+          cp report_json.json evidencias/zap/after.json || true
 
-      - name: Encerrar API
-        run: kill $(cat api.pid) || true
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f api.pid ]; then kill $(cat api.pid) || true; fi
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: zap-after
           path: evidencias/zap
